@@ -3,13 +3,19 @@ import { sortRows, filterRows, paginateRows } from './helpers'
 import { Pagination } from './Pagination'
 import { Link } from 'react-router-dom';
 
-export const Table = ({ columns, rows }) => {
+const statusMap = {
+  1: 'Online',
+  2: 'Pending',
+  3: 'Offline',
+}
+
+const formatStatus = (statusId) => statusMap[statusId] || 'Offline'
+
+export const Table = ({ columns, rows, loading, error }) => {
   const [activePage, setActivePage] = useState(1)
   const [filters, setFilters] = useState({})
   const [sort, setSort] = useState({ order: 'asc', orderBy: 'id' })
   const rowsPerPage = 20
-  let correct_location="";
-  let correct_stateOfCharge = "";
 
   const filteredRows = useMemo(() => filterRows(rows, filters), [rows, filters])
   const sortedRows = useMemo(() => sortRows(filteredRows, sort), [filteredRows, sort])
@@ -50,44 +56,98 @@ export const Table = ({ columns, rows }) => {
     setFilters({})
   }
 
+  const metrics = useMemo(() => {
+    const total = rows.length
+    const online = rows.filter((row) => row.connectionStatus === 1).length
+    const healthyChargeSamples = rows.filter((row) => typeof row.stateOfCharge === 'number')
+    const avgCharge = healthyChargeSamples.length
+      ? Math.round(
+          healthyChargeSamples.reduce((acc, row) => acc + row.stateOfCharge, 0) /
+            healthyChargeSamples.length
+        )
+      : 0
+    const critical = rows.filter((row) => typeof row.stateOfCharge === 'number' && row.stateOfCharge < 15).length
+
+    return { total, online, avgCharge, critical }
+  }, [rows])
+
+  const sortIcon = (accessor) => {
+    if (accessor !== sort.orderBy) {
+      return <i className="fas fa-sort" aria-hidden="true"></i>
+    }
+
+    return sort.order === 'asc' ? (
+      <i className="fas fa-sort-up" aria-hidden="true"></i>
+    ) : (
+      <i className="fas fa-sort-down" aria-hidden="true"></i>
+    )
+  }
+
   return (
-    <div className='table-container'>
-    <div className='header'>
-        <h1>Battery Monitoring System</h1>
-        <h5>- Powered by pavithra</h5>
+    <div className='dashboard-container'>
+      <div className='dashboard-hero'>
+        <p className='eyebrow'> Monitoring Deck</p>
+        <h1>FleetPulse Battery Intelligence</h1>
+        <p>
+          Live status and operational confidence insights for your battery fleet, empowering proactive maintenance and optimized performance.
+        </p>
       </div>
 
-      <div className='input-container'>
+      <div className='kpi-grid'>
+        <article className='kpi-card'>
+          <p>Total assets</p>
+          <h2>{metrics.total}</h2>
+        </article>
+        <article className='kpi-card'>
+          <p>Online now</p>
+          <h2>{metrics.online}</h2>
+        </article>
+        <article className='kpi-card'>
+          <p>Average charge</p>
+          <h2>{metrics.avgCharge}%</h2>
+        </article>
+        <article className='kpi-card'>
+          <p>Critical under 15%</p>
+          <h2>{metrics.critical}</h2>
+        </article>
+      </div>
+
+      <div className='controls-panel'>
         <div className='search-bar'>
         <input
         key={`id-search`}
         type="search"
-        placeholder={`Search by id`}
+        placeholder='Search by battery ID'
         value={filters["id"]}
         onChange={(event) => handleSearch(event.target.value, "id")}/>
-        
+        <input
+          key='location-search'
+          type='search'
+          placeholder='Search by location'
+          value={filters.location || ''}
+          onChange={(event) => handleSearch(event.target.value, 'location')}
+        />
       </div>
-      <button onClick={clearAll}>Clear</button>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button className='clear-btn' onClick={clearAll}>Clear filters</button>
+        <Link className='clear-btn' to='/showcase'>Chart showcase</Link>
+      </div>
      </div>
-      <div>
-      <table>
+
+      {loading ? <p className='feedback'>Loading fleet telemetry...</p> : null}
+      {error ? <p className='feedback error'>{error}</p> : null}
+
+      <div className='table-wrap'>
+      <table className='fleet-table'>
         <thead>
           <tr>
             {columns.map((column) => {
-              const sortIcon = () => {
-                if (column.accessor === sort.orderBy) {
-                  if (sort.order === 'asc') {
-                    return <i className="fas fa-caret-square-up" style={{color:"white", border:"transparent",fontSize:"20px"}}></i>
-                  }
-                  return <i className="fas fa-caret-square-down" style={{color:"white", border:"transparent",fontSize:"20px"}}></i>
-                } else {
-                  return <i className="fas fa-caret-square-down" style={{color:"white", border:"transparent",fontSize:"20px"}}></i>
-                }
-              }
               return (
                 <th key={column.accessor}>
                   <span>{column.label}</span>
-                  <button style={{background:"#e37373", marginLeft:"5px", border:"none", width:"25px"}} onClick={() => handleSort(column.accessor)}>{sortIcon()}</button>
+                  <button className='sort-btn' onClick={() => handleSort(column.accessor)}>
+                    {sortIcon(column.accessor)}
+                  </button>
                 </th>
               )
             })}
@@ -95,28 +155,22 @@ export const Table = ({ columns, rows }) => {
         </thead>
         <tbody>
           {calculatedRows.map((row) => {
-          
-              if(row.location === null){
-                correct_location = "NA";
-              } else {
-                  correct_location= row.location
-              }
-    
-              if(row.stateOfCharge === null){
-                correct_stateOfCharge  = "NA";
-              } else {
-                correct_stateOfCharge = row.stateOfCharge
-              }
-    
             return (
               <tr key={row.id}>
-
-                 <Link to={`/${row.id}`} target='_blank' ><td>{row.id}</td></Link>
-                    <td>{correct_location}</td>
-                    <td>{correct_stateOfCharge }</td>
-                    <td>{row.connectionStatus}</td></tr>)
-              
-            
+                <td>
+                  <Link className='battery-link' to={`/battery/${row.id}`}>
+                    {row.id}
+                  </Link>
+                </td>
+                <td>{row.location || 'N/A'}</td>
+                <td>{typeof row.stateOfCharge === 'number' ? `${row.stateOfCharge}%` : 'N/A'}</td>
+                <td>
+                  <span className={`status-chip status-${formatStatus(row.connectionStatus).toLowerCase()}`}>
+                    {formatStatus(row.connectionStatus)}
+                  </span>
+                </td>
+              </tr>
+            )
           })}
         </tbody>
       </table>
@@ -134,7 +188,7 @@ export const Table = ({ columns, rows }) => {
         <p>No data found</p>
       )}
 
-      
+
     </div>
   )
 }
