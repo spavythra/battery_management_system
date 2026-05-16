@@ -6,7 +6,7 @@ Production URL: https://fleetpulse-battery-dashboard.vercel.app
 
 ## Highlights
 
-- Real-time style monitoring dashboard with KPI cards and searchable fleet table
+- Real-time monitoring dashboard with KPI cards and searchable fleet table
 - Battery detail diagnostics page with:
 	- charge dynamics
 	- health index and signal confidence
@@ -146,4 +146,4 @@ vercel --prod
 
 ## License
 
-Internal/demo project. Add a formal license before commercial distribution.
+MIT License
