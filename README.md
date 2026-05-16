@@ -126,18 +126,6 @@ vercel
 vercel --prod
 ```
 
-## Repository Hygiene
-
-- Generated files are ignored (for example `build/`, `coverage/`, `node_modules/`).
-- Runtime data access is centralized in `src/Components/api.js`.
-- Source and tests are separated by responsibility inside `src/Components`.
-
-## Reliability and Performance Notes
-
-- Serverless API sets cache headers: `s-maxage=120, stale-while-revalidate=300`
-- UI gracefully falls back to local dataset if API calls fail
-- Client-side cache reduces repeated fetches while moving between routes
-
 ## Troubleshooting
 
 - If frontend does not open, ensure port `3000` is free.
